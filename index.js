@@ -2,15 +2,34 @@ var http = require('http');
 var formidable = require('formidable');
 var fs = require('fs');
 
+upload_dir = process.cwd();
+console.log("File uploads will go to:", upload_dir);
+
 http.createServer(function (req, res) {
   if (req.url == '/fileupload') {
-    var form = new formidable.IncomingForm();
-    form.parse(req, function (err, fields, files) {
+    var form = new formidable.IncomingForm({ 
+      uploadDir: upload_dir ,  // don't forget the __dirname here
+      keepExtensions: true,
+      maxFileSize: 1000 * 1024 * 1024
+    });
+
+    form.parse(req, function (error, fields, files) {
+      if (error) {        
+        console.error(`Error at form.parse: ${error}`);
+        return res.end();
+      } 
+    
+      if (!files || !files.filetoupload) {
+        console.error(`No file received.`);
+        return res.end();
+      }
+    
       var oldpath = files.filetoupload.filepath;
-      var newpath = '/tmp/uploads/' + files.filetoupload.originalFilename;
+      var newpath = upload_dir + '/' + files.filetoupload.originalFilename;
+
       fs.rename(oldpath, newpath, function (err) {
         if (err) throw err;
-        res.write('File uploaded: ' + newpath);
+        res.write('File ' + files.filetoupload.originalFilename + ' uploaded successfully.');
         console.log("File uploaded: " + newpath);
         res.end();
       });
@@ -18,8 +37,8 @@ http.createServer(function (req, res) {
   } else {
     res.writeHead(200, {'Content-Type': 'text/html'});
     res.write('<form action="fileupload" method="post" enctype="multipart/form-data">');
-    res.write('<input type="file" name="filetoupload"><br>');
-    res.write('<input type="submit">');
+    res.write('<input type="file" name="filetoupload"><br><br>');
+    res.write('<input type="submit" >');
     res.write('</form>');
     return res.end();
   }
